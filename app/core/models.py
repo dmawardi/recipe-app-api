@@ -13,6 +13,8 @@ class UserManager(BaseUserManager):
     # password=None is default Django behavior and allows for creation of unusable users
     def create_user(self, email, password=None, **extra_fields):
         """Create save and return a new user."""
+        if not email:
+            raise ValueError("Email address required.")
         # create user model using email. self = User model
         # extra fields will be added in the case of future additional fields
         # Domain of email is normalized ie. lowercased
@@ -20,6 +22,18 @@ class UserManager(BaseUserManager):
         # set the password using hash
         user.set_password(password)
         # save to db using the current db where users are stored
+        user.save(using=self._db)
+
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Create and return a new superuser."""
+        # Create basic user
+        user = self.create_user(email=email, password=password)
+        # set admin fields to true
+        user.is_staff = True
+        user.is_superuser = True
+        # Save to db
         user.save(using=self._db)
 
         return user
