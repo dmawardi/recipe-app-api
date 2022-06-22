@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # External packages
     'rest_framework',
+    'rest_framework.authtoken',
     'drf_spectacular',
     'core',
     'user',

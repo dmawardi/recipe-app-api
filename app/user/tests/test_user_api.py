@@ -82,3 +82,74 @@ class PublicUserApiTests(TestCase):
             email=payload['email']).exists()
         # check that false returned
         self.assertFalse(user_exists)
+
+    def test_create_token_for_user(self):
+        """Test generates token for valid credentials"""
+        # User creation details
+        user_details = {
+            'email': 'test@example.com',
+            'password': 'test-user-123',
+            'name': 'Test Name'
+        }
+        # Create user with above credentials
+        create_user(**user_details)
+
+        # payload for login
+        payload = {
+            'email': user_details['email'],
+            'password': user_details['password'],
+        }
+        # Login with payload credentials
+        res = self.client.post(TOKEN_URL, payload)
+        print(f'response is: ', res.data)
+        # Test token contained in response and status code is OK
+        self.assertIn('token', res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_create_token_bad_credentials(self):
+        """Test returns error if credentials invalid."""
+        # User creation details
+        user_details = {
+            'email': 'test@example.com',
+            'password': 'test-user-123',
+            'name': 'Test Name'
+        }
+        # Create user with above credentials
+        create_user(**user_details)
+
+        # payload for login
+        payload = {
+            'email': user_details['email'],
+            'password': 'wrong-pass',
+        }
+        # Send incorrect credentials
+        res = self.client.post(TOKEN_URL, payload)
+
+        # Ensure bad request returned
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        # Ensure key token not returned in response data
+        self.assertNotIn('token', res.data)
+
+    def test_create_token_blank_password(self):
+        """Test returns error if password is blank."""
+        # User creation details
+        user_details = {
+            'email': 'test@example.com',
+            'password': 'test-user-123',
+            'name': 'Test Name'
+        }
+        # Create user with above credentials
+        create_user(**user_details)
+
+        # payload for login
+        payload = {
+            'email': user_details['email'],
+            'password': '',
+        }
+        # Send incorrect credentials
+        res = self.client.post(TOKEN_URL, payload)
+
+        # Ensure bad request returned
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        # Ensure key token not returned in response data
+        self.assertNotIn('token', res.data)
