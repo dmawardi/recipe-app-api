@@ -9,6 +9,7 @@ from rest_framework import status
 
 CREATE_USER_URL = reverse('user:create')
 TOKEN_URL = reverse('user:token')
+ME_URL = reverse('user:me')
 
 # **params allows any parameters to be passed
 
@@ -101,7 +102,6 @@ class PublicUserApiTests(TestCase):
         }
         # Login with payload credentials
         res = self.client.post(TOKEN_URL, payload)
-        print(f'response is: ', res.data)
         # Test token contained in response and status code is OK
         self.assertIn('token', res.data)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
@@ -153,3 +153,62 @@ class PublicUserApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         # Ensure key token not returned in response data
         self.assertNotIn('token', res.data)
+
+    def test_retrieve_user_unauthorized(self):
+        """Test that authentication is required for users."""
+
+        res = self.client.get(ME_URL)
+        print('recv status code: '+str(res.status_code))
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class PrivateUserApiTests(TestCase):
+    """Test API requests that require authentication."""
+
+    def setUp(self):
+        # Create user
+        user_details = {
+            'email': 'test@example.com',
+            'password': 'test123abc',
+            'name': 'Test Name'
+        }
+        self.user = create_user(**user_details)
+
+        # Set client
+        self.client = APIClient()
+        # Authenticate using user
+        self.client.force_authenticate(user=self.user)
+
+    def test_retrieve_profile_success(self):
+        """Test retrieving profile when authenticated"""
+        res = self.client.get(ME_URL)
+        # Check response and data as expected
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, {
+            'name': self.user.name,
+            'email': self.user.email
+        })
+
+    def test_post_me_not_allowed(self):
+        """Test POST not allowed for me endpoint"""
+        res = self.client.post(ME_URL, {})
+
+        # Check that POST method is not allowed
+        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_user_profile(self):
+        """Test updating the user profile for the authenticated user"""
+        payload = {
+            'name': 'Updated Name',
+            'password': 'BobRyan123'
+        }
+        res = self.client.patch(ME_URL, payload)
+
+        # ORM object refresh
+        self.user.refresh_from_db()
+        # Status code
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # db values
+        self.assertEqual(self.user.name, payload['name'])
+        self.assertTrue(self.user.check_password(payload['password']))
