@@ -1,4 +1,5 @@
 """Database models."""
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin)
@@ -53,3 +54,19 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # Defines default field used for authentication
     USERNAME_FIELD = 'email'
+
+
+class Recipe(models.Model):
+    """Recipe object."""
+    # Foreign key relationship with user table using declared AUTHUSERMODEL in settings
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    time_minutes = models.IntegerField()
+    price = models.DecimalField(max_digits=5, decimal_places=2)
+    link = models.CharField(max_length=255, blank=True)
+
+    # Change default print behavior to return title
+    def __str__(self) -> str:
+        return self.title
