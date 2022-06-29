@@ -8,7 +8,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Recipe
+from core.models import (Recipe, Tag)
 
 from recipe.serializers import (RecipeSerializer, RecipeDetailSerializer)
 
@@ -268,3 +268,70 @@ class PrivateRecipeAPITest(TestCase):
         # Assert response was successful and that recipe still exists
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(recipe_exists)
+
+    def test_create_recipe_with_new_tags(self):
+        """Test creating a recipe with new tags."""
+        payload = {
+            'title': 'Thai Prawn Curry',
+            'time_minutes': 45,
+            'price': Decimal('10.55'),
+            'description': 'Prawn Curry description',
+            'link': 'http://www.updated.com/recipe.pdf',
+            'tags': [{'name': 'Thai'}, {'name': 'Dinner'}]
+        }
+
+        # POST request
+        res = self.client.post(RECIPES_URL, payload, format='json')
+
+        # Ensure response is correct
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        recipes = Recipe.objects.filter(user=self.user)
+        # Check that there's 1 recipe before accessing
+        self.assertEqual(recipes.count(), 1)
+        # Grab only recipe and ensure there are two tags associated
+        recipe = recipes[0]
+        # Check there's 2 tags
+        self.assertEqual(recipe.tags.count(), 2)
+
+        # Iterate through tags in payload
+        for tag in payload['tags']:
+            # Check for matching tag in first recipe to see if exists
+            exists = recipe.tags.filter(
+                name=tag['name'], user=self.user).exists()
+            self.assertTrue(exists)
+
+    def test_create_recipe_with_existing_tags(self):
+        """Test creating a recipe with existing tag."""
+        tag_indian = Tag.objects.create(user=self.user, name='Indian')
+        payload = {
+            'title': 'Pongal',
+            'time_minutes': 60,
+            'price': Decimal('4.50'),
+            'description': 'Indian food description',
+            'link': 'http://www.updated.com/recipe.pdf',
+            'tags': [{'name': 'Indian'}, {'name': 'Breakfast'}]
+        }
+
+        # Send POST request
+        res = self.client.post(RECIPES_URL, payload, format='json')
+        # Check response
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        # Retrieve user's recipes
+        recipes = Recipe.objects.filter(user=self.user)
+        # Ensure only 1 recipe
+        self.assertEqual(recipes.count(), 1)
+        # Access recipe
+        recipe = recipes[0]
+        # Ensure only 2 tags are available ie. no duplicate created
+        self.assertEqual(recipe.tags.count(), 2)
+        # Ensure Indian tag is present in recipes
+        self.assertIn(tag_indian, recipe.tags.all())
+
+        # Iterate through tags in payload
+        for tag in payload['tags']:
+            # Check for matching tag in first recipe to see if exists
+            exists = recipe.tags.filter(
+                name=tag['name'], user=self.user).exists()
+            self.assertTrue(exists)
