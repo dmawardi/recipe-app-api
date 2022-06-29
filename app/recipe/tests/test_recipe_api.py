@@ -138,8 +138,13 @@ class PrivateRecipeAPITest(TestCase):
         }
 
         # POST Recipe
-        res = self.client.post(RECIPES_URL, payload)  # api/recipe/recipes
+        try:
+            res = self.client.post(RECIPES_URL, payload,
+                                   format='json')  # api/recipe/recipes
+        except Exception as e:
+            print(e)
 
+        # print(f'response for recipe create: {res.status_code}')
         # Assert response correct
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
