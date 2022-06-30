@@ -1,5 +1,6 @@
 """Tests for recipe APIs."""
 from decimal import Decimal
+from re import T
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -340,3 +341,66 @@ class PrivateRecipeAPITest(TestCase):
             exists = recipe.tags.filter(
                 name=tag['name'], user=self.user).exists()
             self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        """Test creating a new tag on update recipe."""
+        recipe = create_recipe(user=self.user)
+
+        # Build payload and url
+        payload = {'tags': [{'name': 'Lunch'}]}
+        url = detail_url(recipe.id)
+
+        # Send PATCH request
+        res = self.client.patch(url, payload, format='json')
+        # Check response
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        # Search for newly created tag through recipe
+        new_tag = Tag.objects.get(user=self.user, name='Lunch')
+        # Assert that all list items in tags
+        self.assertIn(new_tag, recipe.tags.all())
+
+    def test_update_recipe_assign_tag(self):
+        """Test assigning an existing tag when updating a recipe."""
+        # Create new tag
+        tag_breakfast = Tag.objects.create(user=self.user, name="Breakfast")
+
+        # Create new recipe and add the new tag
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag_breakfast)
+
+        # Create new tag lunch
+        tag_lunch = Tag.objects.create(user=self.user, name="Lunch")
+
+        # Prepare for recipe update API call
+        payload = {
+            'tags': [{'name': 'Lunch'}]
+        }
+        url = detail_url(recipe.id)
+        # Send PATCH to update recipe with new tags
+        res = self.client.patch(url, payload, format='json')
+        # Check response
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        # Check that only updated tag is within
+        self.assertIn(tag_lunch, recipe.tags.all())
+        self.assertNotIn(tag_breakfast, recipe.tags.all())
+
+    def test_clear_recipe_tags(self):
+        """Tests clearing a recipe's tags"""
+        # Create new tag
+        tag_breakfast = Tag.objects.create(user=self.user, name="Breakfast")
+
+        # Create new recipe and add the new tag
+        recipe = create_recipe(user=self.user)
+        recipe.tags.add(tag_breakfast)
+
+        # Prepare for recipe update API call
+        payload = {
+            'tags': []
+        }
+        url = detail_url(recipe.id)
+        # Send PATCH to update recipe with new tags
+        res = self.client.patch(url, payload, format='json')
+        # Check response
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(recipe.tags.count(), 0)

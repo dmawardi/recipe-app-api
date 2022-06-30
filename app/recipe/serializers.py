@@ -26,12 +26,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'time_minutes', 'price', 'link', 'tags']
         read_only_fields = ['id']
 
-    def create(self, validated_data):
-        """Create a recipe."""
-        # pop the tags property of validated data. Default to empty list
-        tags = validated_data.pop('tags', [])
-        # Create new recipe using validated data
-        recipe = Recipe.objects.create(**validated_data)
+    def _get_or_create_tags(self, tags, recipe):
+        """Handle getting or creating tags as needed."""
         # Grab the authenticated user from context
         # Note: Passed by view when using as serializer class
         # through self.context.request property
@@ -45,7 +41,39 @@ class RecipeSerializer(serializers.ModelSerializer):
             )
             # add to recipe's tag property
             recipe.tags.add(tag_obj)
+
+    def create(self, validated_data):
+        """Create a recipe."""
+        # pop the tags property of validated data. Default to empty list
+        tags = validated_data.pop('tags', [])
+        # Create new recipe using validated data
+        recipe = Recipe.objects.create(**validated_data)
+
+        self._get_or_create_tags(tags, recipe)
         return recipe
+
+    # with update you have the instance as well
+    def update(self, instance, validated_data):
+        """Update a recipe"""
+        # Remove tags from validated data and store
+        tags = validated_data.pop('tags', None)
+
+        # If tags detected
+        if tags is not None:
+            # Clear current tags on instance
+            instance.tags.clear()
+            # Replace with new ones or existing ones
+            self._get_or_create_tags(tags, instance)
+
+        # Iterate through remaining validated items
+        for attr, value in validated_data.items():
+            # Set the attributes within the instance variable
+            setattr(instance, attr, value)
+
+        # Save all changes
+        instance.save()
+        return instance
+
 
 # Build recipe detail serializer based off of Recipe Serializer
 
